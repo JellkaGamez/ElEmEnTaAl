@@ -25,3 +25,8 @@ screen = pygame.display.set_mode((resolutions[3]["width"], resolutions[3]["heigh
 pygame.display.set_caption("ElEmEnTaAl")
 
 # set the icon
+icon = images.load_image("icon.png")
+pygame.display.set_icon(icon)
+
+# set the font
+font = fnt.load_font("font.ttf", 20)
