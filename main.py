@@ -7,6 +7,7 @@ import time
 import images as img
 import sounds as snd
 import random
+from colours import *
 
 resolutions = [
     { "width": 426, "height": 240, "name": "" },
@@ -47,8 +48,11 @@ font_logo = fnt.load_font("assets\\main.ttf", 100)
 # set the music
 snd.set_music("assets\\lobby-time.mp3")
 
+# set the type of boxes
+boxes = ['basic', 'dice']
+
 # set the box
-box = img.load_image("assets\\boxes\\box.png")
+box = img.load_image(f"assets\\boxes\\{boxes[0]}.png")
 
 # play the music
 snd.play_music()
@@ -150,34 +154,85 @@ class ImgButton:
 
     def render(self):
         self.image = img.scale_image(self.image, self.width * self.size, self.height * self.size)
-        buffer.blit(self.image, (self.x - self.width // 2, self.y - self.height // 2))
+        buffer.blit(self.image, (self.x - (self.width * self.size) // 2, self.y - (self.height * self.size) // 2))
 
+def empty_button():
+    print('empty button')
 class MenuButton (ImgButton):
-    def __init__(self, image, x, y, width, height, tint):
+    def __init__(self, image, x, y, width, height, tint, func=empty_button, layer: Layer = None):
         super().__init__(image, x, y, width, height, tint)
         self.original_width = width
         self.original_height = height
+        self.func = func
+        self.clicked = False
+        self.layer = layer
 
     def update(self):
-        if self.hover(buffer_mouse_x, buffer_mouse_y):
+        if self.hover(buffer_mouse_x, buffer_mouse_y) and current_layer == self.layer :
             self.size += (1.2 - self.size) * 0.1
+            if pygame.mouse.get_pressed()[0] and not self.clicked:
+                self.clicked = True
+                self.size = 1.5
+                self.func()
+            elif not pygame.mouse.get_pressed()[0] and self.clicked:
+                self.clicked = False
         else:
             self.size += (1 - self.size) * 0.1
 
         self.image = img.scale_image(self.o_image, self.width, self.height)
 
+current_layer = None
+
+class BG:
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.image = img.load_image('assets\\wood.png')
+        self.image = img.scale_image(self.image, width - 20, height - 20)
+        self.screen = pygame.Surface((width, height))
+
+    def render(self, ox=0, oy=0):
+        # render a square filling self
+        self.screen.fill(c_burly_wood)
+        self.screen.blit(self.image, (10, 10))
+        buffer.blit(self.screen, (self.x + ox, self.y + oy))
 
 class PopupLayer (Layer):
-    def __init__(self, x, y, target, width, height):
+    def __init__(self, x, y, target, width, height, layer: Layer = None):
         super().__init__(x, y, width, height)
         self.target = target
+        self.layer = layer
+
+    def update(self):
+        if current_layer == self.layer:
+            self.x += (self.target[0] - self.x) * 0.1
+            self.y += (self.target[1] - self.y) * 0.1
+        else:
+            self.x += (self.target[0] - self.x) * 0.1
+            self.y += (self.target[1] + self.width - self.y) * 0.1
+    
+    def render(self):
+        for obj in self.objs:
+            obj.render(ox = self.x, oy = self.y)
+
+def set_settings():
+    global current_layer
+    current_layer = settings_layer
+
+def init_settings():
+    global current_layer, settings_layer
+    print('init settings')
+    settings_layer = PopupLayer(buffer.get_width() // 2 - 1100 // 2, (buffer.get_height() // 2 - 620 // 2) + 620, (buffer.get_width() // 2 - 1100 // 2, buffer.get_height() // 2 - 620 // 2), 1100, 620)
+    settings_layer.layer = settings_layer
+    settings_layer.add(BG(0, 0, 1100, 620))
+    return settings_layer
 
 def init_menu():
     menu_layer = Layer(0, 0, buffer.get_width(), buffer.get_height())
 
-    play = MenuButton('assets\\play.png', buffer.get_width() // 2, buffer.get_height() // 2 + 100, 300, 300, colours[1])
-    settings = MenuButton('assets\\settings.png', buffer.get_width() // 2 + 300, buffer.get_height() // 2 + 100, 200, 200, colours[3])
-    jukebox = MenuButton('assets\\jukebox.png', buffer.get_width() // 2 - 300, buffer.get_height() // 2 + 100, 200, 200, colours[2])
+    play = MenuButton('assets\\play.png', buffer.get_width() // 2, buffer.get_height() // 2 + 100, 300, 300, colours[1], layer=menu_layer)
+    settings = MenuButton('assets\\settings.png', buffer.get_width() // 2 + 300, buffer.get_height() // 2 + 100, 200, 200, colours[3], set_settings, menu_layer)
+    jukebox = MenuButton('assets\\jukebox.png', buffer.get_width() // 2 - 300, buffer.get_height() // 2 + 100, 200, 200, colours[2], layer=menu_layer)
 
     menu_layer.add(play)
     menu_layer.add(settings)
@@ -188,6 +243,8 @@ def init_menu():
 fps = 60 if vsync else 0
 
 menu_layer = init_menu()
+settings_layer = init_settings()
+current_layer = menu_layer
 
 # main loop
 running = True
@@ -219,6 +276,10 @@ while running:
     # draw the buttons
     menu_layer.update()
     menu_layer.render()
+
+    # update the settings layer IF settings layer is the current layer
+    settings_layer.update()
+    settings_layer.render()
 
     # render the fps
     text = font_small.render("FPS: " + str(int(clock.get_fps())), True, (255, 255, 255))
