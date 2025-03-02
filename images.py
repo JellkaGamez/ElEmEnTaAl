@@ -5,7 +5,7 @@ def load_image(name):
     return img
 
 def scale_image(image, width, height):
-    img = pygame.transform.scale(image, (width, height))
+    img = pygame.transform.smoothscale(image, (width, height))
     return img
 
 def render_image(image, surface, x, y, ox=0, oy=0):
